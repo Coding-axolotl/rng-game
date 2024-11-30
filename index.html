@@ -3,21 +3,406 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RNG Game</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Duck's Lucky Roll</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        #titleScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            height: 100vh;
+            background-color: #ffff99;
+        }
+        #titleScreen h1 {
+            font-size: 3em;
+            color: #ff6600;
+            text-shadow: 2px 2px #ffcc00;
+        }
+        #titleScreen img {
+            width: 200px;
+            height: 200px;
+            cursor: pointer;
+        }
+        #playButton {
+            font-size: 1.5em;
+            padding: 10px 20px;
+            background-color: #ff6600;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        #gameScreen {
+            display: none;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #ccc;
+        }
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+        #rollButton {
+            font-size: 1.2em;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #rollButton:disabled {
+            background-color: #cccccc;
+        }
+        #result {
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
+        #cooldown {
+            font-size: 1em;
+            margin-top: 10px;
+        }
+        #inventory {
+            margin-top: 20px;
+        }
+        #craftingArea {
+            margin-top: 20px;
+        }
+        .craftButton {
+            font-size: 1em;
+            padding: 5px 10px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        #achievementsTab {
+            padding: 10px;
+        }
+        .achievement {
+            margin-bottom: 10px;
+        }
+        #achievementPopup {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        #headerDuck {
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+        }
+        #headerQuack {
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
+        #displayedItem {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>RNG Game</h1>
-        
-        <button onclick="roll()">Roll</button>
-
-        <h2>Your Collection:</h2>
-        <ul id="collection">
-            <!-- Items collected will appear here -->
-        </ul>
+    <div id="titleScreen">
+        <h1>Duck's Lucky Roll</h1>
+        <img src="https://example.com/duck.png" alt="Duck" id="titleDuck">
+        <button id="playButton">Play</button>
     </div>
 
-    <script src="script.js"></script>
+    <div id="gameScreen">
+        <div class="tab">
+            <button class="tablinks" onclick="openTab(event, 'Main')">Main</button>
+            <button class="tablinks" onclick="openTab(event, 'Inventory')">Inventory</button>
+            <button class="tablinks" onclick="openTab(event, 'Items')">Items</button>
+            <button class="tablinks" onclick="openTab(event, 'Achievements')">Achievements</button>
+            <span id="gameTitle">Duck's Lucky Roll</span>
+            <img src="https://example.com/duck.png" alt="Duck" id="headerDuck">
+            <span id="headerQuack"></span>
+        </div>
+
+        <div id="Main" class="tabcontent">
+            <button id="rollButton">Roll</button>
+            <div id="result"></div>
+            <div id="cooldown"></div>
+            <div id="displayedItem"></div>
+        </div>
+
+        <div id="Inventory" class="tabcontent">
+            <h3>Your Inventory</h3>
+            <div id="inventory"></div>
+        </div>
+
+        <div id="Items" class="tabcontent">
+            <h3>Craftable Items</h3>
+            <div id="craftingArea"></div>
+        </div>
+
+        <div id="Achievements" class="tabcontent">
+            <h3>Achievements</h3>
+            <div id="achievementsTab"></div>
+        </div>
+    </div>
+
+    <div id="achievementPopup">
+        <img src="https://example.com/duck.png" alt="Duck" style="width: 50px; height: 50px;">
+        <span id="achievementText"></span>
+    </div>
+
+    <script>
+        const rollableItems = [
+            { name: "Common Item", chance: 0.5 },
+            { name: "Uncommon Item", chance: 0.3 },
+            { name: "Rare Item", chance: 0.15 },
+            { name: "Epic Item", chance: 0.04 },
+            { name: "Legendary Item", chance: 0.01 }
+        ];
+
+        const craftableItems = [
+            { name: "Speed Roll Charm", requirements: { "Common Item": 100, "Uncommon Item": 50, "Rare Item": 25 }, effect: "Decreases cooldown by 10%" },
+            { name: "Lucky Charm", requirements: { "Uncommon Item": 75, "Rare Item": 40, "Epic Item": 10 }, effect: "Increases chance of higher rarity items by 10%" }
+        ];
+
+        const achievements = [
+            { name: "One out of many", description: "Roll 1 time", condition: () => totalRolls >= 1 },
+            { name: "Getting there", description: "Roll 100 times", condition: () => totalRolls >= 100 },
+            { name: "Quack!", description: "Press the duck 100 times", condition: () => duckClicks >= 100 },
+            { name: "Minecraft?", description: "Craft your first item", condition: () => craftedItems > 0 }
+        ];
+
+        let inventory = {};
+        let cooldownTime = 5000;
+        let lastRollTime = 0;
+        let totalRolls = 0;
+        let duckClicks = 0;
+        let craftedItems = 0;
+        let completedAchievements = new Set();
+
+        document.getElementById('playButton').addEventListener('click', startGame);
+        document.getElementById('rollButton').addEventListener('click', roll);
+        document.getElementById('titleDuck').addEventListener('click', quack);
+        document.getElementById('headerDuck').addEventListener('click', headerQuack);
+
+        function startGame() {
+            document.getElementById('titleScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            openTab(event, 'Main');
+            updateInventoryDisplay();
+            updateCraftingArea();
+            updateAchievements();
+        }
+
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        function roll() {
+            const currentTime = Date.now();
+            if (currentTime - lastRollTime < cooldownTime) {
+                const remainingTime = Math.ceil((cooldownTime - (currentTime - lastRollTime)) / 1000);
+                document.getElementById('cooldown').textContent = `Cooldown: ${remainingTime} seconds`;
+                return;
+            }
+
+            lastRollTime = currentTime;
+            totalRolls++;
+
+            const roll = Math.random();
+            let cumulativeChance = 0;
+            let rolledItem;
+
+            for (const item of rollableItems) {
+                cumulativeChance += item.chance;
+                if (roll < cumulativeChance) {
+                    rolledItem = item.name;
+                    break;
+                }
+            }
+
+            if (inventory[rolledItem]) {
+                inventory[rolledItem]++;
+            } else {
+                inventory[rolledItem] = 1;
+            }
+
+            document.getElementById('result').textContent = `You rolled: ${rolledItem}`;
+            updateInventoryDisplay();
+            updateAchievements();
+
+            const cooldownInterval = setInterval(() => {
+                const remainingTime = Math.ceil((cooldownTime - (Date.now() - lastRollTime)) / 1000);
+                if (remainingTime > 0) {
+                    document.getElementById('cooldown').textContent = `Cooldown: ${remainingTime} seconds`;
+                } else {
+                    document.getElementById('cooldown').textContent = 'Ready to roll!';
+                    clearInterval(cooldownInterval);
+                }
+            }, 1000);
+        }
+
+        function updateInventoryDisplay() {
+            const inventoryDiv = document.getElementById('inventory');
+            inventoryDiv.innerHTML = '';
+            for (const [item, count] of Object.entries(inventory)) {
+                const itemDiv = document.createElement('div');
+                itemDiv.textContent = `${item}: ${count}`;
+                const displayButton = document.createElement('button');
+                displayButton.textContent = 'Display';
+                displayButton.onclick = () => displayItem(item);
+                itemDiv.appendChild(displayButton);
+                inventoryDiv.appendChild(itemDiv);
+            }
+        }
+
+        function updateCraftingArea() {
+            const craftingArea = document.getElementById('craftingArea');
+            craftingArea.innerHTML = '';
+            for (const item of craftableItems) {
+                const itemDiv = document.createElement('div');
+                itemDiv.innerHTML = `<h4>${item.name}</h4>
+                                     <p>${item.effect}</p>
+                                     <p>Requirements:</p>`;
+                for (const [req, amount] of Object.entries(item.requirements)) {
+                    itemDiv.innerHTML += `<p>${req}: ${amount}</p>`;
+                }
+                const craftButton = document.createElement('button');
+                craftButton.textContent = 'Craft';
+                craftButton.classList.add('craftButton');
+                craftButton.onclick = () => craftItem(item);
+                itemDiv.appendChild(craftButton);
+                craftingArea.appendChild(itemDiv);
+            }
+        }
+
+        function craftItem(item) {
+            for (const [req, amount] of Object.entries(item.requirements)) {
+                if (!inventory[req] || inventory[req] < amount) {
+                    alert("You don't have enough resources to craft this item!");
+                    return;
+                }
+            }
+
+            for (const [req, amount] of Object.entries(item.requirements)) {
+                inventory[req] -= amount;
+            }
+
+            if (inventory[item.name]) {
+                inventory[item.name]++;
+            } else {
+                inventory[item.name] = 1;
+            }
+
+            craftedItems++;
+            updateInventoryDisplay();
+            updateAchievements();
+            alert(`You crafted a ${item.name}!`);
+
+            if (item.name === "Speed Roll Charm") {
+                cooldownTime *= 0.9;
+            } else if (item.name === "Lucky Charm") {
+                for (let i = 1; i < rollableItems.length; i++) {
+                    rollableItems[i].chance *= 1.1;
+                }
+                rollableItems[0].chance = 1 - rollableItems.slice(1).reduce((sum, item) => sum + item.chance, 0);
+            }
+        }
+
+        function updateAchievements() {
+            const achievementsTab = document.getElementById('achievementsTab');
+            achievementsTab.innerHTML = '';
+            for (const achievement of achievements) {
+                const achievementDiv = document.createElement('div');
+                achievementDiv.classList.add('achievement');
+                if (achievement.condition() && !completedAchievements.has(achievement.name)) {
+                    completedAchievements.add(achievement.name);
+                    showAchievementPopup(achievement.name);
+                }
+                achievementDiv.textContent = `${achievement.name}: ${achievement.description} - ${completedAchievements.has(achievement.name) ? 'Completed' : 'Not completed'}`;
+                achievementsTab.appendChild(achievementDiv);
+            }
+        }
+
+        function showAchievementPopup(achievementName) {
+            const popup = document.getElementById('achievementPopup');
+            const text = document.getElementById('achievementText');
+            text.textContent = `You completed ${achievementName} good job :D -Duck`;
+            popup.style.display = 'block';
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 3000);
+        }
+
+        function quack() {
+            const titleDuck = document.getElementById('titleDuck');
+            const quackText = document.createElement('div');
+            quackText.textContent = 'Quack!';
+            quackText.style.position = 'absolute';
+            quackText.style.left = `${titleDuck.offsetLeft + titleDuck.offsetWidth}px`;
+            quackText.style.top = `${titleDuck.offsetTop}px`;
+            document.body.appendChild(quackText);
+            setTimeout(() => {
+                document.body.removeChild(quackText);
+            }, 2000);
+            duckClicks++;
+            updateAchievements();
+        }
+
+        function headerQuack() {
+            const headerQuack = document.getElementById('headerQuack');
+            headerQuack.textContent = 'Quack!';
+            setTimeout(() => {
+                headerQuack.textContent = '';
+            }, 2000);
+            duckClicks++;
+            updateAchievements();
+        }
+
+        function displayItem(item) {
+            const displayedItem = document.getElementById('displayedItem');
+            const itemChance = rollableItems.find(i => i.name === item)?.chance || 0;
+            displayedItem.textContent = `Displayed Item: ${item} (${(itemChance * 100).toFixed(2)}% chance)`;
+        }
+    </script>
 </body>
 </html>
